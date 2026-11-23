@@ -29,7 +29,7 @@ Key values (all dynamic, change later without rebuilding binaries):
 `APP_URL=https://app.bhargav.run.place`, `BASE_DOMAIN=bhargav.run.place`,
 `TUNNEL_SERVER_HOST=tunnel.bhargav.run.place`, `TUNNEL_CONTROL_PORT=4443`, `ADMIN_EMAIL`, strong `ADMIN_PASSWORD`,
 strong `DB_PASSWORD`/`INTERNAL_API_SECRET`, SMTP settings (rotate the Gmail app password).
-Run the stack with `docker compose -f docker-compose.prod.yml up -d` using a **project name** (`-p publish`)
+Use **`docker-compose.shared.yml`** (NOT `docker-compose.prod.yml`, which grabs port 443). Run `docker compose -p publish -f docker-compose.shared.yml --env-file .env.production up -d` using a **project name** (`-p publish`)
 so it cannot collide with other compose projects. Bind published ports to `127.0.0.1` only.
 
 ## 3. HTTPS with the existing nginx (no change to other sites)
@@ -44,12 +44,12 @@ Two nginx server blocks (add as new files; reload with `nginx -t && systemctl re
 ```
 server { listen 443 ssl; server_name app.bhargav.run.place;
   ssl_certificate /etc/ssl/publish/fullchain.pem; ssl_certificate_key /etc/ssl/publish/key.pem;
-  location / { proxy_pass http://127.0.0.1:8100; proxy_set_header Host $host;
+  location / { proxy_pass https://127.0.0.1:8443; proxy_ssl_verify off; proxy_set_header Host $host;
                proxy_set_header X-Forwarded-Proto https; proxy_set_header X-Forwarded-For $remote_addr; } }
 server { listen 443 ssl; server_name *.bhargav.run.place;   # tunnels
   ssl_certificate /etc/ssl/publish/fullchain.pem; ssl_certificate_key /etc/ssl/publish/key.pem;
   client_max_body_size 50m; proxy_read_timeout 300s;
-  location / { proxy_pass http://127.0.0.1:8180; proxy_set_header Host $host;
+  location / { proxy_pass https://127.0.0.1:8443; proxy_ssl_verify off; proxy_set_header Host $host;
                proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection $connection_upgrade; } }
 ```
 Other sites keep their own `server_name`, so nginx routes by hostname and they are unaffected.
