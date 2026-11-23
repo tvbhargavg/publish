@@ -34,7 +34,7 @@ class DashboardTest extends TestCase
         User::factory()->create(['email' => 'u@example.com', 'password' => 'correct-horse-123']);
         $this->post('/login', ['email' => 'u@example.com', 'password' => 'bad'])->assertSessionHasErrors('email');
         $this->post('/login', ['email' => 'u@example.com', 'password' => 'correct-horse-123'])->assertRedirect('/dashboard');
-        $this->get('/dashboard')->assertOk()->assertSee('Active tunnels');
+        $this->get('/dashboard')->assertOk()->assertSee('Quick start');
         $this->post('/logout')->assertRedirect('/login');
         $this->get('/dashboard')->assertRedirect('/login');
     }
@@ -56,8 +56,8 @@ class DashboardTest extends TestCase
         $u = User::factory()->create();
         $r = $this->actingAs($u)->post('/tokens', ['name' => 'laptop']);
         $r->assertRedirect('/tokens');
-        $this->actingAs($u)->get('/tokens')->assertSee('Copy your new token');
-        $this->actingAs($u)->get('/tokens')->assertDontSee('Copy your new token');
+        $this->actingAs($u)->get('/tokens')->assertSee('Your new token');
+        $this->actingAs($u)->get('/tokens')->assertDontSee('Your new token');
         $id = $u->tokens()->first()->id;
         $other = User::factory()->create();
         $this->actingAs($other)->delete("/tokens/$id")->assertNotFound();

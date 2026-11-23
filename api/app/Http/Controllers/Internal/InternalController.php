@@ -21,7 +21,7 @@ class InternalController extends Controller
             return response()->json(['error' => 'invalid_token'], 401);
         }
         $user = $t->tokenable;
-        if (! $user instanceof User || $user->isDisabled()) {
+        if (! $user instanceof User || $user->isDisabled() || ! $user->hasVerifiedEmail()) {
             return response()->json(['error' => 'invalid_token'], 401);
         }
         if (! $t->last_used_at || $t->last_used_at->lt(now()->subMinute())) {

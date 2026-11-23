@@ -4,7 +4,7 @@ Base: `/api/v1`. Auth: `Authorization: Bearer <Sanctum token>` (tokens hashed at
 ## Public
 - `GET /config` — `{base_domain, server_host, control_port, tls}` (no secrets)
 - `POST /auth/login` `{email,password,token_name?}` → `{token, token_id}` (token shown once)
-- `POST /auth/register` — disabled unless `ALLOW_REGISTRATION=true`
+- `POST /auth/register` — disabled unless `ALLOW_REGISTRATION=true` (off by default). Rate limited to 5/hour and 20/day per IP; one account per email (case-insensitive); new accounts are free (1 tunnel, no reserved subdomains) until an admin grants premium
 
 ## Authenticated
 - `POST /auth/logout`, `GET /me`
@@ -26,4 +26,4 @@ The tunnel server proxies `app.<BASE_DOMAIN>` to the API but returns 404 for `/i
 Reserved names (`config/tunnel.php`), per-user tunnel and reservation limits, optional monthly bandwidth cap, `TUNNEL_ALLOW_UNRESERVED_CUSTOM=false` to require reservation before using a custom name. Stale "active" rows are closed by `tunnels:reap` (every minute) and lazily on authorize/list.
 
 ## Bootstrap
-`php artisan mytunnel:create-user you@example.com --admin` (prints a generated password).
+`php artisan publish:create-user you@example.com --admin` (prints a generated password).

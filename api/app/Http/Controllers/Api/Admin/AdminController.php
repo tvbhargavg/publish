@@ -21,9 +21,11 @@ class AdminController extends Controller
 
     public function createUser(Request $r)
     {
+        $r->merge(['email' => strtolower(trim((string) $r->input('email')))]);
         $d = $r->validate(['name' => 'required|string|max:100', 'email' => 'required|email|max:190|unique:users', 'password' => 'required|string|min:10|max:200',
             'max_tunnels' => 'sometimes|integer|min:0|max:1000', 'max_reservations' => 'sometimes|integer|min:0|max:1000', 'monthly_bytes_limit' => 'sometimes|nullable|integer|min:0']);
         $u = User::create($d);
+        $u->forceFill(['email_verified_at' => now()])->save(); // operator-created: trusted
         Audit::log($r->user(), 'user.created', 'user', $u->id);
 
         return response()->json(['id' => $u->id], 201);
@@ -32,9 +34,13 @@ class AdminController extends Controller
     public function updateUser(Request $r, User $user)
     {
         $d = $r->validate(['max_tunnels' => 'sometimes|integer|min:0|max:1000', 'max_reservations' => 'sometimes|integer|min:0|max:1000',
-            'monthly_bytes_limit' => 'sometimes|nullable|integer|min:0', 'disabled' => 'sometimes|boolean']);
+            'monthly_bytes_limit' => 'sometimes|nullable|integer|min:0', 'disabled' => 'sometimes|boolean', 'tunnel_access' => 'sometimes|boolean']);
+        if (array_key_exists('tunnel_access', $d)) {
+            $user->forceFill(['tunnel_access' => $d['tunnel_access']]);
+            unset($d['tunnel_access']);
+        }
         if (array_key_exists('disabled', $d)) {
-            abort_if($user->id === $r->user()->id, 422, 'You cannot disable yourself');
+            abort_if($d['disabled'] && $user->id === $r->user()->id, 422, 'You cannot disable yourself');
             $user->disabled_at = $d['disabled'] ? now() : null;
             if ($d['disabled']) {
                 $user->tokens()->delete(); // kill API sessions; live tunnels drop at next revalidation
@@ -42,7 +48,7 @@ class AdminController extends Controller
             unset($d['disabled']);
         }
         $user->fill($d)->save();
-        Audit::log($r->user(), 'user.updated', 'user', $user->id, $r->only(['max_tunnels', 'max_reservations', 'monthly_bytes_limit', 'disabled']));
+        Audit::log($r->user(), 'user.updated', 'user', $user->id, $r->only(['max_tunnels', 'max_reservations', 'monthly_bytes_limit', 'disabled', 'tunnel_access']));
 
         return response()->noContent();
     }

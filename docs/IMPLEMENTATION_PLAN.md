@@ -20,5 +20,5 @@ A task is checked only when its tests pass. Dev is Docker-first: `docker compose
 ## Phase 7 – Dashboard (Blade, no Livewire needed): DONE (9 tests)
 ## Phase 8 – Production: files DONE, live full-stack run PENDING
 - [x] Dockerfiles (server image built and config-guard verified), docker-compose.prod.yml, systemd units, ufw script, Postgres backup script, Prometheus config + alerts, /metrics + /healthz, docs (vps-setup, runbook, dns-ssl, security, api, protocol)
-- [ ] Live full-stack run (real Laravel + Redis + Go server + CLI) — blocked: running `php artisan migrate` on the dev DB was denied by the permission classifier; needs your OK (see handoff)
+- [x] Live full-stack run (real Laravel + Redis + Go server + CLI): tunnel, Host routing, dashboard proxy, /internal blocked, bad token rejected, revoked token drops tunnel (verified 2026-11-23)
 - [ ] Build/run `Dockerfile.api` and `docker-compose.prod.yml` on a real host with a domain

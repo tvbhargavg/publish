@@ -1,4 +1,4 @@
-// Package protocol defines the wire protocol between the mytunnel client and
+// Package protocol defines the wire protocol between the publish client and
 // tunnel server. See docs/protocol.md.
 //
 // Layout: one TLS connection carries one multiplexed session (see Mux).

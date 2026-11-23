@@ -7,6 +7,7 @@ use App\Services\TunnelRegistry;
 class FakeRegistry implements TunnelRegistry
 {
     public array $entries = [];
+
     public array $removed = [];
 
     public function get(string $subdomain): ?array

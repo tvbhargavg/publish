@@ -29,14 +29,14 @@ func (m *Metrics) write(w io.Writer, active int) {
 	p := func(name, help, typ string, v int64, labels string) {
 		fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s %s\n%s%s %d\n", name, help, name, typ, name, labels, v)
 	}
-	p("mytunnel_tunnels_active", "Active tunnels", "gauge", int64(active), "")
-	p("mytunnel_control_connections_total", "Agent connections accepted", "counter", m.ControlConns.Load(), "")
-	p("mytunnel_auth_failures_total", "Failed agent authentications", "counter", m.AuthFailures.Load(), "")
-	p("mytunnel_rate_limited_total", "Requests rejected by rate limiting", "counter", m.RateLimited.Load(), "")
-	p("mytunnel_bytes_in_total", "Request body bytes forwarded", "counter", m.BytesIn.Load(), "")
-	p("mytunnel_bytes_out_total", "Response bytes forwarded", "counter", m.BytesOut.Load(), "")
-	fmt.Fprintf(w, "# HELP mytunnel_requests_total Public requests by status class\n# TYPE mytunnel_requests_total counter\n")
+	p("publish_tunnels_active", "Active tunnels", "gauge", int64(active), "")
+	p("publish_control_connections_total", "Agent connections accepted", "counter", m.ControlConns.Load(), "")
+	p("publish_auth_failures_total", "Failed agent authentications", "counter", m.AuthFailures.Load(), "")
+	p("publish_rate_limited_total", "Requests rejected by rate limiting", "counter", m.RateLimited.Load(), "")
+	p("publish_bytes_in_total", "Request body bytes forwarded", "counter", m.BytesIn.Load(), "")
+	p("publish_bytes_out_total", "Response bytes forwarded", "counter", m.BytesOut.Load(), "")
+	fmt.Fprintf(w, "# HELP publish_requests_total Public requests by status class\n# TYPE publish_requests_total counter\n")
 	for c, v := range map[string]int64{"2xx": m.Requests2xx.Load(), "3xx": m.Requests3xx.Load(), "4xx": m.Requests4xx.Load(), "5xx": m.Requests5xx.Load()} {
-		fmt.Fprintf(w, "mytunnel_requests_total{class=%q} %d\n", c, v)
+		fmt.Fprintf(w, "publish_requests_total{class=%q} %d\n", c, v)
 	}
 }

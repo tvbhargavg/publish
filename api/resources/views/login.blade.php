@@ -1,13 +1,17 @@
 @extends('layouts.app')
 @section('title','Sign in')
+@section('own-errors','1')
 @section('content')
-<div class="card" style="max-width:380px;margin:40px auto">
+<div class="auth"><div class="card">
 <h1>Sign in</h1>
-<form method="post" action="/login" class="row" style="flex-direction:column;align-items:stretch">
+<p class="sub">Welcome back to Publish.</p>
+<form method="post" action="/login">
 @csrf
-<input type="email" name="email" value="{{ old('email') }}" placeholder="Email" required autofocus>
-<input type="password" name="password" placeholder="Password" required>
-@error('email')<div class="err">{{ $message }}</div>@enderror
-<button>Sign in</button>
-</form></div>
+<label class="f">Email<input type="email" name="email" value="{{ old('email') }}" autocomplete="email" required autofocus></label>
+<label class="f">Password<input type="password" name="password" autocomplete="current-password" required></label>
+@error('email')<div class="err" role="alert">{{ $message }}</div>@enderror
+<button class="main">Sign in</button>
+</form>
+@if(config('tunnel.allow_registration'))<p class="sub" style="margin:16px 0 0;text-align:center">No account? <a href="/register">Create one</a></p>@endif
+</div></div>
 @endsection

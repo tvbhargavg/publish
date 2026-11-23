@@ -19,7 +19,7 @@ class ReservationController extends Controller
     {
         $sub = strtolower((string) $r->input('subdomain'));
         abort_unless(TunnelAuthorizer::validSubdomain($sub) && ! in_array($sub, config('tunnel.reserved'), true), 422, 'Invalid or reserved subdomain');
-        abort_if($r->user()->reservations()->count() >= $r->user()->max_reservations, 429, 'Reservation limit reached');
+        abort_if($r->user()->reservations()->count() >= $r->user()->reservationLimit(), 429, 'Reservation limit reached');
         abort_if(Reservation::where('subdomain', $sub)->exists(), 409, 'Subdomain already reserved');
         $res = $r->user()->reservations()->create(['subdomain' => $sub]);
         Audit::log($r->user(), 'reservation.created', 'reservation', $res->id, ['subdomain' => $sub]);

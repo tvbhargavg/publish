@@ -20,18 +20,37 @@ import (
 
 var version = "0.1.0"
 
+// defaultServer is the tunnel server host:port. Release builds bake in the production
+// address with: -ldflags "-X main.defaultServer=tunnel.example.com:4443"
+var defaultServer = "localhost:4443"
+
 func confDir() string {
 	d, err := os.UserConfigDir()
 	if err != nil {
 		d = os.TempDir()
 	}
-	return filepath.Join(d, "mytunnel")
+	return filepath.Join(d, "publish")
 }
 
-func credPath() string { return filepath.Join(confDir(), "credentials") }
+func credPath() string   { return filepath.Join(confDir(), "credentials") }
+func serverPath() string { return filepath.Join(confDir(), "server") }
+func noTLSPath() string  { return filepath.Join(confDir(), "notls") }
+
+// savedNoTLS is true when `publish config tls off` was run (local development servers).
+func savedNoTLS() bool { _, err := os.Stat(noTLSPath()); return err == nil }
+
+// savedServer returns the server remembered by `publish login --server`, else the built-in default.
+func savedServer() string {
+	if b, err := os.ReadFile(serverPath()); err == nil {
+		if v := strings.TrimSpace(string(b)); v != "" {
+			return v
+		}
+	}
+	return defaultServer
+}
 
 func loadToken() string {
-	if t := os.Getenv("MYTUNNEL_TOKEN"); t != "" {
+	if t := os.Getenv("PUBLISH_TOKEN"); t != "" {
 		return t
 	}
 	b, err := os.ReadFile(credPath())
@@ -48,9 +67,11 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "version":
-		fmt.Println("mytunnel", version)
+		fmt.Println("publish", version)
 	case "login":
-		login()
+		login(os.Args[2:])
+	case "config":
+		configCmd(os.Args[2:])
 	case "logout":
 		if err := os.Remove(credPath()); err != nil && !os.IsNotExist(err) {
 			fatal(err)
@@ -76,12 +97,57 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: mytunnel <login|http <port> [--subdomain name]|status|stop [port]|logout|version>")
+	fmt.Fprintln(os.Stderr, "usage: publish <login [--server host:port]|http <port> [--subdomain name]|status|stop [port]|config|logout|version>")
 }
 
 func fatal(err error) {
 	fmt.Fprintln(os.Stderr, "error:", err)
 	os.Exit(1)
+}
+
+// configCmd: `publish config show | server <host:port> | tls on|off` (used by the installer scripts).
+func configCmd(args []string) {
+	usage := func() { fatal(fmt.Errorf("usage: publish config show | server <host:port> | tls on|off")) }
+	if len(args) == 0 {
+		usage()
+	}
+	if err := os.MkdirAll(confDir(), 0o700); err != nil {
+		fatal(err)
+	}
+	switch args[0] {
+	case "show":
+		fmt.Println("server:", savedServer())
+		fmt.Println("tls:   ", !savedNoTLS())
+		fmt.Println("login: ", loadToken() != "")
+	case "server":
+		if len(args) != 2 || strings.TrimSpace(args[1]) == "" {
+			usage()
+		}
+		if err := os.WriteFile(serverPath(), []byte(strings.TrimSpace(args[1])+"\n"), 0o600); err != nil {
+			fatal(err)
+		}
+		fmt.Println("Server set to", savedServer())
+	case "tls":
+		if len(args) != 2 {
+			usage()
+		}
+		switch args[1] {
+		case "on":
+			if err := os.Remove(noTLSPath()); err != nil && !os.IsNotExist(err) {
+				fatal(err)
+			}
+			fmt.Println("TLS on")
+		case "off":
+			if err := os.WriteFile(noTLSPath(), []byte("1\n"), 0o600); err != nil {
+				fatal(err)
+			}
+			fmt.Println("TLS off (local development only)")
+		default:
+			usage()
+		}
+	default:
+		usage()
+	}
 }
 
 func stopCmd(args []string) {
@@ -101,8 +167,11 @@ func stopCmd(args []string) {
 	}
 }
 
-func login() {
-	tok := os.Getenv("MYTUNNEL_TOKEN")
+func login(args []string) {
+	fs := flag.NewFlagSet("login", flag.ExitOnError)
+	srv := fs.String("server", "", "tunnel server host:port to remember (default: built-in)")
+	_ = fs.Parse(args)
+	tok := os.Getenv("PUBLISH_TOKEN")
 	if tok == "" {
 		fmt.Fprint(os.Stderr, "Enter auth token: ")
 		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
@@ -117,14 +186,19 @@ func login() {
 	if err := os.WriteFile(credPath(), []byte(tok+"\n"), 0o600); err != nil {
 		fatal(err)
 	}
-	fmt.Println("Token saved")
+	if *srv != "" {
+		if err := os.WriteFile(serverPath(), []byte(*srv+"\n"), 0o600); err != nil {
+			fatal(err)
+		}
+	}
+	fmt.Println("Token saved. Server:", savedServer())
 }
 
 func httpCmd(args []string) {
 	fs := flag.NewFlagSet("http", flag.ExitOnError)
-	server := fs.String("server", envOr("MYTUNNEL_SERVER", "localhost:4443"), "tunnel server host:port")
-	noTLS := fs.Bool("no-tls", os.Getenv("MYTUNNEL_NO_TLS") == "1", "connect without TLS (local development only)")
-	caFile := fs.String("ca-file", os.Getenv("MYTUNNEL_CA_FILE"), "extra CA certificate (PEM) to trust, for dev certs")
+	server := fs.String("server", envOr("PUBLISH_SERVER", savedServer()), "tunnel server host:port")
+	noTLS := fs.Bool("no-tls", os.Getenv("PUBLISH_NO_TLS") == "1" || savedNoTLS(), "connect without TLS (local development only)")
+	caFile := fs.String("ca-file", os.Getenv("PUBLISH_CA_FILE"), "extra CA certificate (PEM) to trust, for dev certs")
 	sub := fs.String("subdomain", "", "request a specific subdomain")
 	// allow `http 8000 --flag` as well as `http --flag 8000`
 	var pos []string
@@ -138,7 +212,7 @@ func httpCmd(args []string) {
 		rest = fs.Args()[1:]
 	}
 	if len(pos) != 1 {
-		fatal(fmt.Errorf("usage: mytunnel http <port>"))
+		fatal(fmt.Errorf("usage: publish http <port>"))
 	}
 	port, err := strconv.Atoi(pos[0])
 	if err != nil || port < 1 || port > 65535 {
@@ -146,7 +220,7 @@ func httpCmd(args []string) {
 	}
 	tok := loadToken()
 	if tok == "" {
-		fatal(fmt.Errorf("not logged in: run `mytunnel login`"))
+		fatal(fmt.Errorf("not logged in: run `publish login`"))
 	}
 	var tc *tls.Config
 	if !*noTLS {

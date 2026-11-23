@@ -47,7 +47,7 @@ class TunnelAuthorizer
         $limit = $user->monthly_bytes_limit;
         if ($limit !== null) {
             $u = $user->monthlyUsage();
-            if ($u['bytes_in'] + $u['bytes_out'] >= $limit) {
+            if ($limit <= $u['bytes_in'] + $u['bytes_out']) {
                 throw new PolicyException(429, 'monthly bandwidth limit reached');
             }
         }
@@ -55,6 +55,18 @@ class TunnelAuthorizer
 
         return DB::transaction(function () use ($user, $tokenId, $requested, $port) {
             User::whereKey($user->id)->lockForUpdate()->first(); // serialize per-user allocation
+
+            // A reserved name is always what you get: free users (1 reservation, 1 tunnel) always use it,
+            // premium users get their first reserved name that is not already live.
+            $reserved = Reservation::where('user_id', $user->id)->orderBy('id')->pluck('subdomain');
+            if ($reserved->isNotEmpty()) {
+                if (! $user->tunnel_access) {
+                    $requested = $reserved->first();
+                } elseif ($requested === null || $requested === '') {
+                    $busy = Tunnel::active()->where('user_id', $user->id)->pluck('subdomain');
+                    $requested = $reserved->first(fn ($s) => ! $busy->contains($s));
+                }
+            }
 
             if ($requested !== null && $requested !== '') {
                 $sub = strtolower($requested);
@@ -82,7 +94,7 @@ class TunnelAuthorizer
             }
 
             $count = Tunnel::active()->where('user_id', $user->id)->where('subdomain', '!=', $sub)->count();
-            if ($count >= $user->max_tunnels) {
+            if ($count >= $user->tunnelLimit()) {
                 throw new PolicyException(429, 'tunnel limit reached');
             }
 

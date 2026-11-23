@@ -1,7 +1,7 @@
 [Unit]
-Description=mytunnel Laravel scheduler (one run)
+Description=publish Laravel scheduler (one run)
 [Service]
 Type=oneshot
 User=www-data
-WorkingDirectory=/var/www/mytunnel/api
+WorkingDirectory=/var/www/publish/api
 ExecStart=/usr/bin/php artisan schedule:run --no-interaction

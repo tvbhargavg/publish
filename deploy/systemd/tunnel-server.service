@@ -1,12 +1,12 @@
 [Unit]
-Description=mytunnel tunnel server
+Description=publish tunnel server
 After=network-online.target redis-server.service
 Wants=network-online.target
 
 [Service]
-User=mytunnel
-Group=mytunnel
-EnvironmentFile=/etc/mytunnel/server.env
+User=publish
+Group=publish
+EnvironmentFile=/etc/publish/server.env
 ExecStart=/usr/local/bin/tunnel-server
 Restart=always
 RestartSec=2
@@ -16,7 +16,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/lib/mytunnel
+ReadWritePaths=/var/lib/publish
 KillSignal=SIGTERM
 TimeoutStopSec=15
 

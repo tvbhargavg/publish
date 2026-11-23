@@ -1,5 +1,5 @@
 [Unit]
-Description=Run the mytunnel scheduler every minute
+Description=Run the publish scheduler every minute
 [Timer]
 OnCalendar=minutely
 AccuracySec=5s
