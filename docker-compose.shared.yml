@@ -10,14 +10,15 @@ services:
       REDIS_ADDR: redis:6379
       INTERNAL_API_URL: http://web:8080
       DASHBOARD_UPSTREAM: http://web:8080
-      ADMIN_LISTEN_ADDR: 0.0.0.0:9090
-      PUBLIC_HTTPS_PORT: "8443"
+      ADMIN_LISTEN_ADDR: 0.0.0.0:9090   # container-internal only, not published
+      PUBLIC_HTTPS_PORT: "${PUBLISH_LOCAL_PORT:-18443}"
+      TUNNEL_CONTROL_PORT: "${TUNNEL_CONTROL_PORT:-47443}"
       TLS_MODE: file
       TLS_CERT_FILE: /ssl/fullchain.pem
       TLS_KEY_FILE: /ssl/key.pem
     ports:
-      - "127.0.0.1:8443:8443"   # tunnel public side (TLS); host nginx proxies *.domain here
-      - "4443:4443"             # CLI control connections (public)
+      - "127.0.0.1:${PUBLISH_LOCAL_PORT:-18443}:${PUBLISH_LOCAL_PORT:-18443}"   # localhost only; host nginx proxies *.domain here
+      - "${TUNNEL_CONTROL_PORT:-47443}:${TUNNEL_CONTROL_PORT:-47443}"   # the ONLY public port: CLI control connections
     volumes: ["/etc/ssl/publish:/ssl:ro"]
     depends_on: [redis, web]
     read_only: true
