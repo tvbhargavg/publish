@@ -1,0 +1,54 @@
+# Production-style stack. Secrets and domain come from the environment / .env.production
+# (never committed). Run: docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+services:
+  tunnel-server:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile.server }
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      REDIS_ADDR: redis:6379
+      INTERNAL_API_URL: http://web:8080
+      DASHBOARD_UPSTREAM: http://web:8080
+      ADMIN_LISTEN_ADDR: 0.0.0.0:9090      # not published; scraped by Prometheus on the internal network
+      ACME_STORAGE: /certs
+    ports:
+      - "443:443"      # PUBLIC_HTTPS_PORT=443 (TLS_MODE=acme|file)
+      - "4443:4443"    # agent control connections
+    volumes: [certs:/certs]
+    depends_on: [redis, web]
+    read_only: true
+    cap_drop: [ALL]
+    sysctls: { net.ipv4.ip_unprivileged_port_start: "0" }   # lets the non-root user bind 443
+    security_opt: ["no-new-privileges:true"]
+  api:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile.api }
+    restart: unless-stopped
+    env_file: .env.production
+    environment: { DB_HOST: postgres, REDIS_HOST: redis, APP_ENV: production, APP_DEBUG: "false" }
+    depends_on: [postgres, redis]
+  scheduler:
+    build: { context: ., dockerfile: deploy/docker/Dockerfile.api }
+    restart: unless-stopped
+    env_file: .env.production
+    environment: { DB_HOST: postgres, REDIS_HOST: redis, APP_ENV: production }
+    command: sh -c 'while true; do php artisan schedule:run --no-interaction; sleep 60; done'
+    depends_on: [postgres, redis]
+  web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes: ["./deploy/docker/nginx-api.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [api]
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "300", "1"]
+    volumes: [redisdata:/data]
+volumes: { certs: {}, pgdata: {}, redisdata: {} }

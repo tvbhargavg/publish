@@ -1,0 +1,19 @@
+groups:
+  - name: mytunnel
+    rules:
+      - alert: TunnelServerDown
+        expr: up{job="mytunnel"} == 0
+        for: 1m
+        labels: { severity: critical }
+      - alert: High5xxRate
+        expr: rate(mytunnel_requests_total{class="5xx"}[5m]) > 5
+        for: 5m
+        labels: { severity: warning }
+      - alert: AuthFailureSpike
+        expr: rate(mytunnel_auth_failures_total[5m]) > 2
+        for: 5m
+        labels: { severity: warning }
+      - alert: RateLimitingHeavy
+        expr: rate(mytunnel_rate_limited_total[5m]) > 20
+        for: 10m
+        labels: { severity: info }
