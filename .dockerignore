@@ -1,0 +1,19 @@
+# Keep secrets, VCS data and local junk OUT of every image build context.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.env.production
+api/vendor
+api/node_modules
+api/storage/logs/*
+api/storage/framework/sessions/*
+api/storage/framework/cache/*
+api/storage/framework/views/*
+bin
+dist
+.playwright-mcp
