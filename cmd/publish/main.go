@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -97,7 +98,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: publish <login [--server host:port]|http <port> [--subdomain name]|status|stop [port]|config|logout|version>")
+	fmt.Fprintln(os.Stderr, "usage: publish <login [--server host:port]|http <port> [--subdomain name] [--host-header rewrite]|status|stop [port]|config|logout|version>")
 }
 
 func fatal(err error) {
@@ -200,6 +201,7 @@ func httpCmd(args []string) {
 	noTLS := fs.Bool("no-tls", os.Getenv("PUBLISH_NO_TLS") == "1" || savedNoTLS(), "connect without TLS (local development only)")
 	caFile := fs.String("ca-file", os.Getenv("PUBLISH_CA_FILE"), "extra CA certificate (PEM) to trust, for dev certs")
 	sub := fs.String("subdomain", "", "request a specific subdomain")
+	hostHeader := fs.String("host-header", "", "Host header sent to your app: `rewrite` (localhost:<port>) or a custom value")
 	// allow `http 8000 --flag` as well as `http --flag 8000`
 	var pos []string
 	rest := args
@@ -234,13 +236,14 @@ func httpCmd(args []string) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	var hinted atomic.Bool
 	st := client.State{PID: os.Getpid(), LocalPort: port, Status: "connecting", StartedAt: time.Now()}
 	save := func() { _ = client.WriteState(confDir(), st) }
 	save()
 	defer client.RemoveState(confDir(), st.PID)
 
 	err = client.RunForever(ctx, client.Options{
-		ServerAddr: *server, Token: tok, LocalPort: port, TLS: tc, Version: version, RequestedSubdomain: *sub,
+		ServerAddr: *server, Token: tok, LocalPort: port, TLS: tc, Version: version, RequestedSubdomain: *sub, HostHeader: *hostHeader,
 		OnConnect: func(reg protocol.Registered) {
 			st.URL, st.Status = reg.URL, "online"
 			save()
@@ -256,6 +259,9 @@ func httpCmd(args []string) {
 		},
 		OnRequest: func(m, p string, status int, d time.Duration) {
 			fmt.Printf("%s %-6s %s %d (%s)\n", time.Now().Format("15:04:05"), m, p, status, d.Round(time.Millisecond))
+			if (status == 400 || status == 403) && *hostHeader == "" && hinted.CompareAndSwap(false, true) {
+				fmt.Printf("Tip: if your app says \"Invalid host header\", run: publish http %d --host-header rewrite\n", port)
+			}
 		},
 	})
 	if err != nil {

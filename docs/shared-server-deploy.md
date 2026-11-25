@@ -14,11 +14,11 @@ admin/metrics `127.0.0.1:9101`. The ONLY new public port is the control port **4
 
 ## 1. DNS (DNSExit panel)
 ```
-A  app.bhargav.run.place  -> SERVER_PUBLIC_IP
-A  tunnel.bhargav.run.place -> SERVER_PUBLIC_IP
-A  *.bhargav.run.place    -> SERVER_PUBLIC_IP
+A  app.bg.run.place  -> SERVER_PUBLIC_IP
+A  tunnel.bg.run.place -> SERVER_PUBLIC_IP
+A  *.bg.run.place    -> SERVER_PUBLIC_IP
 ```
-Verify: `dig +short anything.bhargav.run.place`.
+Verify: `dig +short anything.bg.run.place`.
 
 ## 2. Code and env
 ```
@@ -26,8 +26,8 @@ git clone <repo> /opt/publish && cd /opt/publish
 cp .env.example .env ; cp api/.env.example api/.env     # fill real values, never commit
 ```
 Key values (all dynamic, change later without rebuilding binaries):
-`APP_URL=https://app.bhargav.run.place`, `BASE_DOMAIN=bhargav.run.place`,
-`TUNNEL_SERVER_HOST=tunnel.bhargav.run.place`, `TUNNEL_CONTROL_PORT=47443`, `ADMIN_EMAIL`, strong `ADMIN_PASSWORD`,
+`APP_URL=https://app.bg.run.place`, `BASE_DOMAIN=bg.run.place`,
+`TUNNEL_SERVER_HOST=tunnel.bg.run.place`, `TUNNEL_CONTROL_PORT=47443`, `ADMIN_EMAIL`, strong `ADMIN_PASSWORD`,
 strong `DB_PASSWORD`/`INTERNAL_API_SECRET`, SMTP settings (rotate the Gmail app password).
 Use **`docker-compose.shared.yml`** (NOT `docker-compose.prod.yml`, which grabs port 443). Run `docker compose -p publish -f docker-compose.shared.yml --env-file .env.production up -d` using a **project name** (`-p publish`)
 so it cannot collide with other compose projects. Bind published ports to `127.0.0.1` only.
@@ -35,18 +35,18 @@ so it cannot collide with other compose projects. Bind published ports to `127.0
 ## 3. HTTPS with the existing nginx (no change to other sites)
 Wildcard cert needs DNS-01. Use acme.sh with the DNSExit plugin (needs `DNSEXIT_API_KEY`, `DNSEXIT_AUTH_USER`, `DNSEXIT_AUTH_PASS`):
 ```
-acme.sh --issue --dns dns_dnsexit -d bhargav.run.place -d '*.bhargav.run.place'
-acme.sh --install-cert -d bhargav.run.place --fullchain-file /etc/ssl/publish/fullchain.pem \
+acme.sh --issue --dns dns_dnsexit -d bg.run.place -d '*.bg.run.place'
+acme.sh --install-cert -d bg.run.place --fullchain-file /etc/ssl/publish/fullchain.pem \
         --key-file /etc/ssl/publish/key.pem --reloadcmd "systemctl reload nginx"
 ```
 If the plugin cannot add TXT records, add the `_acme-challenge` TXT manually in the panel (`--dns` manual mode), or ask DNSExit support.
 Two nginx server blocks (add as new files; reload with `nginx -t && systemctl reload nginx`):
 ```
-server { listen 443 ssl; server_name app.bhargav.run.place;
+server { listen 443 ssl; server_name app.bg.run.place;
   ssl_certificate /etc/ssl/publish/fullchain.pem; ssl_certificate_key /etc/ssl/publish/key.pem;
   location / { proxy_pass https://127.0.0.1:18443; proxy_ssl_verify off; proxy_set_header Host $host;
                proxy_set_header X-Forwarded-Proto https; proxy_set_header X-Forwarded-For $remote_addr; } }
-server { listen 443 ssl; server_name *.bhargav.run.place;   # tunnels
+server { listen 443 ssl; server_name *.bg.run.place;   # tunnels
   ssl_certificate /etc/ssl/publish/fullchain.pem; ssl_certificate_key /etc/ssl/publish/key.pem;
   client_max_body_size 50m; proxy_read_timeout 300s;
   location / { proxy_pass https://127.0.0.1:18443; proxy_ssl_verify off; proxy_set_header Host $host;
@@ -64,10 +64,10 @@ Allow only: 80/443 (already open), **47443/tcp**. Keep 8100/8180/9101/5432/6379 
 ```
 docker compose -p publish -f docker-compose.prod.yml up -d
 docker compose -p publish exec api php artisan migrate --force && php artisan db:seed --force
-deploy/release/build-cli.sh tunnel.bhargav.run.place:47443 0.2.0   # binaries; installers read .env live
+deploy/release/build-cli.sh tunnel.bg.run.place:47443 0.2.0   # binaries; installers read .env live
 ```
-Open `https://app.bhargav.run.place`, log in as admin, then from another PC run
-`curl -fsSL https://app.bhargav.run.place/install.sh | sh` (Windows: `irm https://app.bhargav.run.place/install.ps1 | iex`).
+Open `https://app.bg.run.place`, log in as admin, then from another PC run
+`curl -fsSL https://app.bg.run.place/install.sh | sh` (Windows: `irm https://app.bg.run.place/install.ps1 | iex`).
 
 ## 6. Safety
 - Back up Postgres (`deploy/backups/backup-postgres.sh`), cron it.

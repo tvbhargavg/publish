@@ -44,6 +44,8 @@ $port = config('tunnel.example_port');
 <p class="hint" style="margin-top:12px">2. Share the app running on your computer (replace {{ $port }} with its port):</p>
 <x-copy :text="'publish http '.$port" />
 <p class="hint" style="margin-top:8px">It prints your public URL. Press Ctrl+C to stop.</p>
+<p class="hint" style="margin-top:12px">Seeing "Invalid host header"? Your app only accepts <code>localhost</code>. Run:</p>
+<x-copy :text="'publish http '.$port.' --host-header rewrite'" />
 </div>
 </div>
 <script>

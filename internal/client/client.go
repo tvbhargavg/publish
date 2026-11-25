@@ -32,6 +32,10 @@ type Options struct {
 	RequestedSubdomain string
 	HeartbeatEvery     time.Duration       // default 15s
 	OnStatus           func(status string) // "connecting", "reconnecting in 2s: ...", "disconnected"
+
+	// HostHeader overrides the Host sent to the local app: "" keeps the public host,
+	// "rewrite" sends localhost:<port>, anything else is sent as given.
+	HostHeader string
 }
 
 // Run connects once and blocks until the session ends or ctx is cancelled.
@@ -194,6 +198,7 @@ func handleStream(st protocol.Stream, local *http.Transport, o Options) {
 	req.RequestURI = ""
 	req.URL.Scheme = "http"
 	req.URL.Host = fmt.Sprintf("127.0.0.1:%d", o.LocalPort)
+	req.Host = localHost(o, req.Host)
 	resp, err := local.RoundTrip(req)
 	status := http.StatusBadGateway
 	if err != nil {
@@ -208,6 +213,18 @@ func handleStream(st protocol.Stream, local *http.Transport, o Options) {
 	if o.OnRequest != nil {
 		o.OnRequest(req.Method, req.URL.RequestURI(), status, time.Since(start))
 	}
+}
+
+// localHost picks the Host header for the local app. It never affects where we connect:
+// the transport always dials the configured loopback port.
+func localHost(o Options, public string) string {
+	switch o.HostHeader {
+	case "":
+		return public
+	case "rewrite":
+		return fmt.Sprintf("localhost:%d", o.LocalPort)
+	}
+	return o.HostHeader
 }
 
 // fatal reports whether retrying cannot help.

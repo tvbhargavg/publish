@@ -28,7 +28,8 @@ services:
     build: { context: ., dockerfile: deploy/docker/Dockerfile.api }
     restart: unless-stopped
     env_file: .env.production
-    environment: { DB_HOST: postgres, REDIS_HOST: redis, APP_ENV: production, APP_DEBUG: "false" }
+    environment: { DB_HOST: postgres, REDIS_HOST: redis, APP_ENV: production, APP_DEBUG: "false", CLI_DIST_DIR: /cli }
+    volumes: ["./dist/cli:/cli:ro"]   # built by deploy/release/build-cli.sh; served on the Install page
     depends_on: [postgres, redis]
   scheduler:
     build: { context: ., dockerfile: deploy/docker/Dockerfile.api }
