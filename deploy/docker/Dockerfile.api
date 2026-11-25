@@ -6,11 +6,15 @@ COPY api/ ./
 RUN composer dump-autoload --optimize --no-dev
 
 FROM php:8.3-fpm-alpine
-RUN apk add --no-cache postgresql-dev $PHPIZE_DEPS \
- && docker-php-ext-install pdo_pgsql opcache \
+# intl is required by Laravel's Number helpers (traffic and file sizes on the dashboard).
+RUN apk add --no-cache postgresql-dev icu-dev $PHPIZE_DEPS \
+ && docker-php-ext-install pdo_pgsql opcache intl \
  && pecl install redis && docker-php-ext-enable redis \
  && apk del $PHPIZE_DEPS
 WORKDIR /var/www/html
 COPY --from=deps /app ./
+# Fail the build if PHP lacks anything the locked packages require.
+COPY --from=composer:2 /usr/bin/composer /tmp/composer
+RUN /tmp/composer check-platform-reqs --no-dev && rm /tmp/composer
 RUN chown -R www-data:www-data storage bootstrap/cache
 USER www-data
